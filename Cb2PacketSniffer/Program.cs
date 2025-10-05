@@ -28,6 +28,8 @@ public class MainApp
 		GCSettings.LatencyMode = GCLatencyMode.LowLatency;
 		AllocConsole();
 
+		Console.WriteLine("Waiting for enet.dll to load...");
+
 		while (ModuleHandle == IntPtr.Zero)
 		{
 			if (GetModuleHandle("enet.dll") != IntPtr.Zero)
@@ -36,9 +38,7 @@ public class MainApp
 				break;
 			}
 
-			Console.WriteLine("Waiting for enet.dll to load...");
-
-			Thread.Sleep(1000);
+			Thread.Sleep(1);
 		}
 		Console.WriteLine($"enet loaded at {ModuleHandle:X}!");
 

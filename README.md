@@ -4,6 +4,7 @@ An injectable packet sniffer dll for an ancient version of the game
 # Usage
 - Compile via Visual Studio 2022
 - The dll will be generated in an Win64 folder, next to the .sln
+- Place [nitrog0d's cimgui.dll](https://github.com/nitrog0d/RLLoader/blob/main/RLLoader.Core/Libraries/cimgui.dll) next to the dll (also give him a star, his code is amazing)
 - Inject to the process on startup
 
 If you use mhynot2, you should preferably stop it from allocating the console\

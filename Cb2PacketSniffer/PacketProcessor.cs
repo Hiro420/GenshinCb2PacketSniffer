@@ -5,6 +5,7 @@ using KazusaGI_cb2.Protocol;
 using System.Reflection;
 using System.Text.Json.Serialization;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Cb2PacketSniffer;
 
@@ -62,7 +63,10 @@ internal class PacketProcessor
 	{
 		WriteIndented = true,
 		IncludeFields = true,
-		Converters = { new JsonStringEnumConverter() }
+		TypeInfoResolver = JsonTypeInfoResolver.Combine(
+			JsonContext.Default,
+			new DefaultJsonTypeInfoResolver()
+		)
 	};
 
 	public static void Process(byte[] packet, PacketSource _source)

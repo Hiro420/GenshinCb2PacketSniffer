@@ -10,16 +10,16 @@ namespace Cb2PacketSniffer;
 public delegate int enet_peer_send(nint peer, byte channelID, nint packet);
 
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-public delegate int enet_host_service(nint host, out ENetEvent @event, uint timeout);
+public delegate IntPtr enet_peer_recv(nint peer, out byte channelId);
 
 internal class Hooks
 {
 	public static uint packet_Send_rva = 
 		MainApp.exportAddressNames.Find(e => e.names == "enet_peer_send").functionRVA;
 	public static uint 
-		packet_Recv_rva = MainApp.exportAddressNames.Find(e => e.names == "enet_host_service").functionRVA;
+		packet_Recv_rva = MainApp.exportAddressNames.Find(e => e.names == "enet_peer_receive").functionRVA;
 	private static NativeDetour<enet_peer_send>? packetSendHook;
-	private static NativeDetour<enet_host_service>? packetRecvHook;
+	private static NativeDetour<enet_peer_recv>? packetRecvHook;
 
 	private static int PacketSendDetour(nint p, byte c, nint pkt)
 	{
@@ -44,37 +44,43 @@ internal class Hooks
 		return packetSendHook.Trampoline(p, c, pkt);
 	}
 
-	private static int PacketRecvDetour(nint host, out ENetEvent @event, uint timeout)
+	private static IntPtr PacketRecvDetour(nint peer, out byte channelId)
 	{
-		// Initialize the out param in case of early returns
-		@event = default;
+		channelId = 0;
 
 		if (packetRecvHook == null)
 		{
-			Console.WriteLine("PacketRecvHook called but hook is null");
-			return 0;
+			Console.WriteLine("PeerReceiveDetour called but hook is null");
+			return IntPtr.Zero;
 		}
 
-		// Call the original; it fills in @event by value (the marshaler pins stack storage and passes a pointer)
-		var ret = packetRecvHook.Trampoline(host, out @event, timeout);
+		// Call the original function
+		IntPtr packetPtr = packetRecvHook.Trampoline(peer, out channelId);
 
-		// ENet: ret > 0 => an event was delivered; 0 => timeout; < 0 => error
-		if (ret > 0 && @event.type == EventType.Receive && @event.packet != IntPtr.Zero)
+		if (packetPtr != IntPtr.Zero)
 		{
-			// Read ENetPacket from the pointer in the event
-			var netpacket = Marshal.PtrToStructure<ENetPacket>(@event.packet);
-			Console.WriteLine($"Detected packet with {netpacket.dataLength} bytes");
+			// Marshal the native ENetPacket struct
+			ENetPacket netpacket = Marshal.PtrToStructure<ENetPacket>(packetPtr);
 
-			// Copy payload (note: dataLength is size_t in ENet; clamp to int for Marshal.Copy)
-			int len = checked((int)netpacket.dataLength);
-			var data = new byte[len];
-			Marshal.Copy(netpacket.data, data, 0, len);
+			if (netpacket.data != IntPtr.Zero && netpacket.dataLength > 0)
+			{
+				try
+				{
+					int len = checked((int)netpacket.dataLength);
+					byte[] data = new byte[len];
+					Marshal.Copy(netpacket.data, data, 0, len);
 
-			// Process but do not free; the app will destroy the packet when it's done.
-			PacketProcessor.Process(data, PacketSource.Server);
+					// Process the packet as a SERVER packet
+					PacketProcessor.Process(data, PacketSource.Server);
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine($"PeerReceiveDetour error copying packet: {ex}");
+				}
+			}
 		}
 
-		return ret;
+		return packetPtr;
 	}
 
 	public static void Init()
@@ -86,7 +92,7 @@ internal class Hooks
 			MainApp.ModuleHandle + (nint)packet_Send_rva,
 			PacketSendDetour
 		);
-		packetRecvHook = new NativeDetour<enet_host_service>(
+		packetRecvHook = new NativeDetour<enet_peer_recv>(
 			MainApp.ModuleHandle + (nint)packet_Recv_rva,
 			PacketRecvDetour
 		);

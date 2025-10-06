@@ -1,7 +1,7 @@
 # GenshinCb2PacketSniffer
 An injectable packet sniffer dll for an ancient version of the game
 
-# DEPRECATED, MOVED TO (C++ VERSION)[https://github.com/Hiro420/GenshinCb2PacketSniffer-Rewrite]
+# DEPRECATED, MOVED TO [C++ VERSION](https://github.com/Hiro420/GenshinCb2PacketSniffer-Rewrite)
 
 # Usage
 - Compile via Visual Studio 2022
